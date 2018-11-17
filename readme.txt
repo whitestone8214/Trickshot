@@ -12,8 +12,11 @@ Required:
 	- Android SDK
 	- App source code to build
 	- Java KeyStore file (.jks) to sign the app
+	- ADB (to install the app)
 	
 Usage:
+	- You can install it into /usr/bin, or top of the source tree.
+	- Run it on the top of the source tree.
 	- You must adjust the variables in script to fit to your environment, manually.
 	- trickshot.sh build :: Build the app
 	- trickshot.sh install :: Install the app (Build first if it doesn't exist)
