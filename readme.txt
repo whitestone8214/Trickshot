@@ -1,6 +1,6 @@
 Trickshot - Suckless build system for Android app
 
-Version 0.0.1
+Version 0.0.2
 
 Copyright (C) 2018 Minho Jo <whitestone8214@gmail.com>
 
@@ -23,7 +23,8 @@ Usage:
 	- trickshot.sh install forcerebuild :: Delete, rebuild, install the app
 	
 Limitations / Todo:
-	- Android Studio is not supported for now. (AFAIK Android Studio also uses SDK to build the app though)
 	- App written in Kotlin or both Java and Kotlin is not supported for now.
-	- App that uses external libraries (including Android Support Libraries) other than basic framework is not supported for now.
+	- Heavy-weight(i.e. Must be compiled in multiple .dex files) app is not supported for now.
+	- App that uses AIDL(.aidl) is not supported for now.
 	- Compatibility with Android versions below than 8.1 (Oreo, API 27) is not supported nor tested. (No plan to support it for now)
+	- Maybe other limitations I don't know...

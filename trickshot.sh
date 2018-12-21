@@ -9,8 +9,16 @@
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
+# Version of this script
+_versionThisMajor=0
+_versionThisMinor=0
+_versionThisMicro=2
+
 # Path to SDK
 _pathSDK="/opt/sdk/android"
+
+# Path to source tree (i.e. src)
+_pathSourceTree="src"
 
 # Version of build toolchain (aapt, d8, zipalign, ...)
 _versionBuildToolchain="28.0.1"
@@ -20,6 +28,30 @@ _versionSDK="27"
 
 # Version of Android
 _versionAndroid="8.1.0"
+
+# Resources
+# Example: _listResources=(res ./libraries/support-v4/res)
+_listResources=(res)
+_optionResources=()
+for x in ${_listResources[@]}; do
+	_optionResources+=(-S)
+	_optionResources+=(${x})
+done
+
+# Libraries
+# Example: _listLibraries=(${_placeSDKAndroid}/platforms/android-${_api}/android.jar ./libraries/support-v4/classes.jar)
+_listLibraries=(${_placeSDKAndroid}/platforms/android-${_api}/android.jar)
+_optionLibrariesAsArray=()
+_optionLibrariesAsArrayForD8=()
+_optionLibrariesAsString=""
+for x in ${_listLibraries[@]}; do
+	_optionLibrariesAsArray+=(-I)
+	_optionLibrariesAsArray+=(${x})
+	if (test "${x}" != "${_placeSDKAndroid}/platforms/android-${_api}/android.jar"); then
+		_optionLibrariesAsArrayForD8+=(${x})
+	fi
+	_optionLibrariesAsString+=":${x}"
+done
 
 # Path to Keystore
 _pathKeystore="${HOME}/keystore.jks"
@@ -39,21 +71,21 @@ if (test "$1" = "build"); then
 	
 	# Generate R.java
 	echo ":: R.java"
-	${_pathSDK}/build-tools/${_versionBuildToolchain}/aapt package --auto-add-overlay -m -J src -A assets -M AndroidManifest.xml -P public_resources.xml -G proguard_options --min-sdk-version ${_versionSDK} --target-sdk-version ${_versionSDK} --version-code ${_versionSDK} --version-name ${_versionAndroid} -S res -I ${_pathSDK}/platforms/android-${_versionSDK}/android.jar || exit 1
+	${_pathSDK}/build-tools/${_versionBuildToolchain}/aapt package --auto-add-overlay -m -J ${_pathSourceTree} -A assets -M AndroidManifest.xml -P public_resources.xml -G proguard_options --min-sdk-version ${_versionSDK} --target-sdk-version ${_versionSDK} --version-code ${_versionSDK} --version-name ${_versionAndroid} ${_optionResources[@]} ${_optionLibrariesAsArray[@]} || exit 1
 	
 	# Compile to JVM bytecode
 	echo ":: JVM bytecode"
-	find src -name '*.java' >> sources-unsorted.txt
+	find ${_pathSourceTree} -name '*.java' >> sources-unsorted.txt
 	tr ' ' '\n' < sources-unsorted.txt | sort -u > sources-sorted.txt
-	javac -d outlet -classpath ${_pathSDK}/platforms/android-${_versionSDK}/android.jar -sourcepath src @sources-sorted.txt || exit 1
+	javac -d outlet -classpath ${_optionLibrariesAsString:1} -sourcepath ${_pathSourceTree} @sources-sorted.txt || exit 1
 	
 	# Compile to Dalvik bytecode
 	echo ":: Dalvik bytecode"
-	${_pathSDK}/build-tools/${_versionBuildToolchain}/d8 --release $(find outlet -name "*.class") || exit 1
+	${_pathSDK}/build-tools/${_versionBuildToolchain}/d8 --release $(find outlet -name "*.class") ${_optionLibrariesAsArrayForD8[@]} || exit 1
 	
 	# Generate APK
 	echo ":: APK"
-	${_pathSDK}/build-tools/${_versionBuildToolchain}/aapt package -u --auto-add-overlay -M AndroidManifest.xml -A assets --min-sdk-version ${_versionSDK} --target-sdk-version ${_versionSDK} --version-code ${_versionSDK} --version-name ${_versionAndroid} -S res -I ${_pathSDK}/platforms/android-${_versionSDK}/android.jar -F unfinished.apk || exit 1
+	${_pathSDK}/build-tools/${_versionBuildToolchain}/aapt package -u --auto-add-overlay -M AndroidManifest.xml -A assets --min-sdk-version ${_versionSDK} --target-sdk-version ${_versionSDK} --version-code ${_versionSDK} --version-name ${_versionAndroid} ${_optionResources[@]} ${_optionLibrariesAsArray[@]} -F unfinished.apk || exit 1
 	
 	# Insert Dalvik bytecode into APK
 	echo ":: Merge Dalvik bytecode into APK"
