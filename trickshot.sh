@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# (C) 2018 Minho Jo <whitestone8214@gmail.com>
+# (C) 2018-2020 Minho Jo <whitestone8214@gmail.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 #
@@ -12,7 +12,7 @@
 # Version of this script
 _versionThisMajor=0
 _versionThisMinor=0
-_versionThisMicro=2
+_versionThisMicro=3
 
 # Path to SDK
 _pathSDK="/opt/sdk/android"
@@ -21,13 +21,13 @@ _pathSDK="/opt/sdk/android"
 _pathSourceTree="src"
 
 # Version of build toolchain (aapt, d8, zipalign, ...)
-_versionBuildToolchain="28.0.1"
+_versionBuildToolchain="28.0.3"
 
 # Version of SDK
-_versionSDK="27"
+_versionSDK="28"
 
 # Version of Android
-_versionAndroid="8.1.0"
+_versionAndroid="9.0.0"
 
 # Resources
 # Example: _listResources=(res ./libraries/support-v4/res)
@@ -39,15 +39,15 @@ for x in ${_listResources[@]}; do
 done
 
 # Libraries
-# Example: _listLibraries=(${_placeSDKAndroid}/platforms/android-${_api}/android.jar ./libraries/support-v4/classes.jar)
-_listLibraries=(${_placeSDKAndroid}/platforms/android-${_api}/android.jar)
+# Example: _listLibraries=(${_pathSDK}/platforms/android-${_versionSDK}/android.jar ./libraries/support-v4/classes.jar)
+_listLibraries=(${_pathSDK}/platforms/android-${_versionSDK}/android.jar)
 _optionLibrariesAsArray=()
 _optionLibrariesAsArrayForD8=()
 _optionLibrariesAsString=""
 for x in ${_listLibraries[@]}; do
 	_optionLibrariesAsArray+=(-I)
 	_optionLibrariesAsArray+=(${x})
-	if (test "${x}" != "${_placeSDKAndroid}/platforms/android-${_api}/android.jar"); then
+	if (test "${x}" != "${_pathSDK}/platforms/android-${_versionSDK}/android.jar"); then
 		_optionLibrariesAsArrayForD8+=(${x})
 	fi
 	_optionLibrariesAsString+=":${x}"
@@ -74,10 +74,18 @@ if (test "$1" = "build"); then
 	${_pathSDK}/build-tools/${_versionBuildToolchain}/aapt package --auto-add-overlay -m -J ${_pathSourceTree} -A assets -M AndroidManifest.xml -P public_resources.xml -G proguard_options --min-sdk-version ${_versionSDK} --target-sdk-version ${_versionSDK} --version-code ${_versionSDK} --version-name ${_versionAndroid} ${_optionResources[@]} ${_optionLibrariesAsArray[@]} || exit 1
 	
 	# Compile to JVM bytecode
-	echo ":: JVM bytecode"
-	find ${_pathSourceTree} -name '*.java' >> sources-unsorted.txt
-	tr ' ' '\n' < sources-unsorted.txt | sort -u > sources-sorted.txt
-	javac -d outlet -classpath ${_optionLibrariesAsString:1} -sourcepath ${_pathSourceTree} @sources-sorted.txt || exit 1
+	if (test -e "/usr/bin/kotlinc"); then
+		echo ":: JVM bytecode from Kotlin sourcecode"
+		find ${_pathSourceTree} -name '*.kt' >> sources-kotlin-unsorted.txt
+		tr ' ' '\n' < sources-kotlin-unsorted.txt | sort -u > sources-kotlin.txt
+		kotlinc -d outlet -classpath ${_optionLibrariesAsString:1} @sources-kotlin.txt || exit 1
+	fi
+	if (test -e "/usr/bin/javac"); then
+		echo ":: JVM bytecode from Java sourcecode"
+		find ${_pathSourceTree} -name '*.java' >> sources-java-unsorted.txt
+		tr ' ' '\n' < sources-java-unsorted.txt | sort -u > sources-java.txt
+		javac -d outlet -classpath ${_optionLibrariesAsString:1} -sourcepath ${_pathSourceTree} @sources-java.txt || exit 1
+	fi
 	
 	# Compile to Dalvik bytecode
 	echo ":: Dalvik bytecode"
@@ -94,9 +102,9 @@ if (test "$1" = "build"); then
 	# Sign APK
 	echo ":: Sign APK"
 	jarsigner -keystore ${_pathKeystore} unfinished.apk ${_nameKey} || exit 1
-	
+		
 	# Realign APK
-	echo ":: Re-align APK"
+	echo ":: Realign APK"
 	${_pathSDK}/build-tools/${_versionBuildToolchain}/zipalign -f 4 unfinished.apk finished.apk || exit 1
 	
 	echo "Done."
@@ -104,7 +112,7 @@ elif (test "$1" = "install"); then
 	if (test "$2" = "forcerebuild"); then
 		rm -f finished.apk || exit 1
 	fi
-	if (!(test -e "${3}/finished.apk")); then
+	if (!(test -e "finished.apk")); then
 		${0} build || exit 1
 	fi
 	
@@ -112,9 +120,9 @@ elif (test "$1" = "install"); then
 else
 	echo
 	echo "Usage:"
-	echo "${0} build :: Build the app"
-	echo "${0} install :: Install the built app (Build first if it doesn't exist)"
-	echo "${0} install forcerebuild :: Delete, rebuild, and install the app"
+	echo "${0} build :: Build app"
+	echo "${0} install :: Install app (Build first if it doesn't exist)"
+	echo "${0} install forcerebuild :: Delete, rebuild and install app"
 	echo
 	
 	exit 1
