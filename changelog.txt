@@ -1,3 +1,7 @@
+- 0.0.4 (2020 / 04 / 23)
+	- Added Java & Kotlin mixed source tree support.
+	- Fixed some critical errata.
+
 - 0.0.3 (2020 / 02 / 18)
 	- Added Kotlin support.
 	- Fixed some critical errata.

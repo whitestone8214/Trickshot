@@ -12,7 +12,7 @@
 # Version of this script
 _versionThisMajor=0
 _versionThisMinor=0
-_versionThisMicro=3
+_versionThisMicro=4
 
 # Path to SDK
 _pathSDK="/opt/sdk/android"
@@ -74,17 +74,20 @@ if (test "$1" = "build"); then
 	${_pathSDK}/build-tools/${_versionBuildToolchain}/aapt package --auto-add-overlay -m -J ${_pathSourceTree} -A assets -M AndroidManifest.xml -P public_resources.xml -G proguard_options --min-sdk-version ${_versionSDK} --target-sdk-version ${_versionSDK} --version-code ${_versionSDK} --version-name ${_versionAndroid} ${_optionResources[@]} ${_optionLibrariesAsArray[@]} || exit 1
 	
 	# Compile to JVM bytecode
-	if (test -e "/usr/bin/kotlinc"); then
-		echo ":: JVM bytecode from Kotlin sourcecode"
-		find ${_pathSourceTree} -name '*.kt' >> sources-kotlin-unsorted.txt
-		tr ' ' '\n' < sources-kotlin-unsorted.txt | sort -u > sources-kotlin.txt
-		kotlinc -d outlet -classpath ${_optionLibrariesAsString:1} @sources-kotlin.txt || exit 1
-	fi
-	if (test -e "/usr/bin/javac"); then
-		echo ":: JVM bytecode from Java sourcecode"
-		find ${_pathSourceTree} -name '*.java' >> sources-java-unsorted.txt
-		tr ' ' '\n' < sources-java-unsorted.txt | sort -u > sources-java.txt
-		javac -d outlet -classpath ${_optionLibrariesAsString:1} -sourcepath ${_pathSourceTree} @sources-java.txt || exit 1
+	echo ":: JVM bytecode"
+	if (test "$2" = "javaonly"); then
+		find ${_pathSourceTree} -name '*.java' >> sources-unsorted.txt
+		tr ' ' '\n' < sources-unsorted.txt | sort -u > sources-sorted.txt
+		javac -d outlet -classpath ${_optionLibrariesAsString:1} -sourcepath ${_pathSourceTree} @sources-sorted.txt || exit 1
+	elif (test "$2" = "kotlinonly"); then
+		find ${_pathSourceTree} -name '*.kt' >> sources-unsorted.txt
+		tr ' ' '\n' < sources-unsorted.txt | sort -u > sources-sorted.txt
+		kotlinc -d outlet -classpath ${_optionLibrariesAsString:1} @sources-sorted.txt || exit 1
+	else
+		find ${_pathSourceTree} -name '*.kt' >> sources-unsorted.txt
+		find ${_pathSourceTree} -name '*.java' >> sources-unsorted.txt
+		tr ' ' '\n' < sources-unsorted.txt | sort -u > sources-sorted.txt
+		kotlinc -Xuse-javac -d outlet -classpath ${_optionLibrariesAsString:1} @sources-sorted.txt || exit 1
 	fi
 	
 	# Compile to Dalvik bytecode
@@ -120,7 +123,9 @@ elif (test "$1" = "install"); then
 else
 	echo
 	echo "Usage:"
-	echo "${0} build :: Build app"
+	echo "${0} build :: Build app (Java & Kotlin mixed; Default)"
+	echo "${0} build javaonly :: Build app (Java-only source tree)"
+	echo "${0} build kotlinonly :: Build app (Kotlin-only source tree)"
 	echo "${0} install :: Install app (Build first if it doesn't exist)"
 	echo "${0} install forcerebuild :: Delete, rebuild and install app"
 	echo
